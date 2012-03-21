@@ -106,10 +106,11 @@ public class ModelMutatorHelper {
 			Project project = (Project) object;
 			Project copiedProject = (Project) clone(object);
 
-			for (ModelElementId modelElementId : project.getAllModelElementIds()) {
-				if (isIgnoredDatatype(project.getModelElement(modelElementId))) {
+			for (EObject eObject : project.getAllModelElements()) {
+				if (isIgnoredDatatype(eObject)) {
 					continue;
 				}
+				ModelElementId modelElementId = project.getModelElementId(eObject);
 				res.setID(copiedProject.getModelElement(modelElementId), modelElementId.getId());
 			}
 			res.getContents().add(copiedProject);
