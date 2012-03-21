@@ -13,7 +13,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -34,7 +33,6 @@ import org.eclipse.emf.ecore.EStructuralFeature;
 import org.eclipse.emf.ecore.EcorePackage;
 import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.eclipse.emf.edit.command.AddCommand;
-import org.eclipse.emf.edit.command.ChangeCommand;
 import org.eclipse.emf.edit.command.DeleteCommand;
 import org.eclipse.emf.edit.command.RemoveCommand;
 import org.eclipse.emf.edit.command.SetCommand;
@@ -78,6 +76,30 @@ public class ModelMutatorUtil {
 	}
 
 	/**
+	 * Returns all valid containment references for an EObject. A reference is valid if it is neither
+	 * derived nor volatile and if it is changeable and either many-valued or
+	 * not already set.
+	 * 
+	 * @param eObject
+	 *            the EObject to get references for
+	 * @param exceptionLog
+	 *            the current log of exceptions
+	 * @param ignoreAndLog
+	 *            should exceptions be ignored and added to
+	 *            <code>exceptionLog</code>?
+	 * @return all valid references as a list
+	 */
+	public static List<EReference> getValidContainmentReferences(EObject eObject, Set<RuntimeException> exceptionLog, boolean ignoreAndLog) {
+		List<EReference> result = new ArrayList<EReference>();
+		for (EReference reference : eObject.eClass().getEAllReferences()) {
+			if (reference.isContainment() && isValid(reference, eObject, exceptionLog, ignoreAndLog)) {
+				result.add(reference);
+			}
+		}
+		return result;
+	}
+	
+	/**
 	 * Returns all valid references for an EObject. This excludes
 	 * container/containment references. A reference is valid if it is neither
 	 * derived nor volatile and if it is changeable and either many-valued or
@@ -92,8 +114,8 @@ public class ModelMutatorUtil {
 	 *            <code>exceptionLog</code>?
 	 * @return all valid references as a list
 	 */
-	public static List<EReference> getValidReferences(EObject eObject, Set<RuntimeException> exceptionLog, boolean ignoreAndLog) {
-		List<EReference> result = new LinkedList<EReference>();
+	public static List<EReference> getValidCrossReferences(EObject eObject, Set<RuntimeException> exceptionLog, boolean ignoreAndLog) {
+		List<EReference> result = new ArrayList<EReference>();
 		for (EReference reference : eObject.eClass().getEAllReferences()) {
 			if (!reference.isContainer() && !reference.isContainment() && isValid(reference, eObject, exceptionLog, ignoreAndLog)) {
 				result.add(reference);
@@ -175,7 +197,7 @@ public class ModelMutatorUtil {
 		 * allEContainments.get(reference); }
 		 */
 		
-		List<EClass> result = new LinkedList<EClass>();
+		List<EClass> result = new ArrayList<EClass>();
 		EClass referenceType = reference.getEReferenceType();
 		// no abstracts or interfaces
 		if (canHaveInstance(referenceType)) {
@@ -191,6 +213,21 @@ public class ModelMutatorUtil {
 		// save the result for upcoming method calls
 		// allEContainments.put(reference, result);
 		return result;
+	}
+	
+	public static Map<EReference, List<EObject>> getCurrentContainments(EObject parentEObject) {
+		Map<EReference, List<EObject>> currentContainments = new HashMap<EReference, List<EObject>>();
+		//Creates map of containments 
+		for (EObject curChild : parentEObject.eContents()) {
+			EReference containment = curChild.eContainmentFeature();
+			List<EObject> list = currentContainments.get(containment);
+			if (list == null) {
+				list = new ArrayList<EObject>();
+				currentContainments.put(containment, list);
+			}
+			list.add(curChild);
+		}
+		return currentContainments;
 	}
 
 	/**
@@ -223,7 +260,7 @@ public class ModelMutatorUtil {
 		 */
 		
 		List<EClass> allEClasses = getAllEClasses();
-		List<EClass> result = new LinkedList<EClass>();
+		List<EClass> result = new ArrayList<EClass>();
 		for (EClass possibleSubClass : allEClasses) {
 			// is the EClass really a subClass, while not being abstract or an interface?
 			if (eClass.isSuperTypeOf(possibleSubClass) && canHaveInstance(possibleSubClass)) {
@@ -250,7 +287,7 @@ public class ModelMutatorUtil {
 		 * PERFORMANCE if (allEClasses != null) { return allEClasses; }
 		 */
 		
-		List<EClass> allEClasses = new LinkedList<EClass>();
+		List<EClass> allEClasses = new ArrayList<EClass>();
 		Registry registry = EPackage.Registry.INSTANCE;
 		// for all registered EPackages
 		for (Entry<String, Object> entry : registry.entrySet()) {
@@ -281,7 +318,7 @@ public class ModelMutatorUtil {
 		 * packageToModelElementEClasses.get(ePackage); }
 		 */
 
-		List<EClass> result = new LinkedList<EClass>();
+		List<EClass> result = new ArrayList<EClass>();
 		// obtain all EClasses from sub packages
 		for (EPackage subPackage : ePackage.getESubpackages()) {
 			result.addAll(getAllEClasses(subPackage));
@@ -311,7 +348,7 @@ public class ModelMutatorUtil {
 		// initialize the computation process
 		Map<EClass, List<EObject>> result = new LinkedHashMap<EClass, List<EObject>>();
 		TreeIterator<EObject> allContents = rootObject.eAllContents();
-		List<EObject> newList = new LinkedList<EObject>();
+		List<EObject> newList = new ArrayList<EObject>();
 		newList.add(rootObject);
 		result.put(rootObject.eClass(), newList);
 		// iterate over all direct and indirect contents
@@ -321,7 +358,7 @@ public class ModelMutatorUtil {
 			if(result.containsKey(eObject.eClass())) {
 				result.get(eObject.eClass()).add(eObject);
 			} else {
-				newList = new LinkedList<EObject>();
+				newList = new ArrayList<EObject>();
 				newList.add(eObject);
 				result.put(eObject.eClass(), newList);
 			}
@@ -494,18 +531,12 @@ public class ModelMutatorUtil {
 	 */
 	public static void removeFullPerCommand(final EObject eObject,
 			Set<RuntimeException> exceptionLog, boolean ignoreAndLog) {
-		EditingDomain domain = AdapterFactoryEditingDomain.getEditingDomainFor(eObject);
-		List<EObject> toDelete=new ArrayList<EObject>();
+//		EditingDomain domain = AdapterFactoryEditingDomain.getEditingDomainFor(eObject);
+		List<EObject> toDelete=new ArrayList<EObject>(1);
 		toDelete.add(eObject);
 			try {
-				new DeleteCommand(domain,toDelete ).execute();
-//				new ChangeCommand(eObject) {
-//					
-//					@Override
-//					protected void doExecute() {
-//						EcoreUtil.delete(eObject, true);
-//					}
-//				};
+//				new DeleteCommand(domain,toDelete ).execute();
+				EcoreUtil.delete(eObject, true);
 			} catch(RuntimeException e){
 				handle(e, exceptionLog, ignoreAndLog);
 			}
@@ -532,8 +563,12 @@ public class ModelMutatorUtil {
 	 * @see #setPerCommand(EObject, EStructuralFeature, Object, Set, boolean)
 	 */
 	public static void setEObjectAttributes(EObject eObject, Random random, Set<RuntimeException> exceptionLog, boolean ignoreAndLog) {
+		setEObjectAttributes(eObject, random, exceptionLog, ignoreAndLog, Integer.MAX_VALUE);
+	}
+	
+	public static int setEObjectAttributes(EObject eObject, Random random, Set<RuntimeException> exceptionLog, boolean ignoreAndLog, int maxNumber) {
 		Map<EClassifier, AttributeSetter<?>> attributeSetters = getAttributeSetters(random);
-
+		int numAttrLeft = maxNumber;
 		for (EAttribute attribute : eObject.eClass().getEAllAttributes()) {
 			EClassifier attributeType = attribute.getEAttributeType();
 
@@ -562,10 +597,16 @@ public class ModelMutatorUtil {
 					int numberOfAttributes = computeFeatureAmount(attribute, random);
 					addPerCommand(eObject, attribute, attributeSetter.createNewAttributes(numberOfAttributes), exceptionLog, ignoreAndLog);
 				} else {
-					setPerCommand(eObject, attribute, attributeSetter.createNewAttribute(), exceptionLog, ignoreAndLog);
+					Object newAttribute = attributeSetter.createNewAttribute();
+					setPerCommand(eObject, attribute, newAttribute, exceptionLog, ignoreAndLog);
+				}
+				numAttrLeft--;
+				if (numAttrLeft == 0) {
+					return maxNumber;
 				}
 			}
 		}
+		return maxNumber - numAttrLeft;
 	}
 
 	/**
