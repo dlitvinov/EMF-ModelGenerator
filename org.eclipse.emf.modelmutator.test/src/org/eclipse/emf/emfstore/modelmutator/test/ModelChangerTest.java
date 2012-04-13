@@ -37,7 +37,7 @@ public class ModelChangerTest extends ModelMutatorTest {
 		// Generate the model before each change-test
 		projectSpace = createProjectSpace();
 		ModelMutatorConfiguration mmc = createModelMutatorConfigurationSeed(projectSpace);
-		ModelMutator.changeModel(mmc);
+		ModelMutator.generateModel(mmc);
 	}
 
 	/**
