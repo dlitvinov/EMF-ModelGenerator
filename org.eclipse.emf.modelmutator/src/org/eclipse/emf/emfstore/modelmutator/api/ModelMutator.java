@@ -7,18 +7,19 @@
  ******************************************************************************/
 package org.eclipse.emf.emfstore.modelmutator.api;
 
-import org.eclipse.emf.emfstore.modelmutator.intern.ModelChanger;
-import org.eclipse.emf.emfstore.modelmutator.intern.ModelGenerator;
+import org.eclipse.emf.emfstore.modelmutator.intern.AbstractModelMutator;
 
 /**
- * Wraps the generator and the changer.
+ * Implementaion of AbstractModelMutator with empty preMutate and postMutate methods.
+ * 
+ * TODO Merge with AbstractModelMutator?
  * 
  * @author Eugen Neufeld
  * @author Stephan Köhler
  * @author Philip Achenbach
+ * @author Dmitry Litvinov
  */
-public class ModelMutator {
-
+public class ModelMutator extends AbstractModelMutator {
 
 	/**
 	 * Generates a model as specified in the config.
@@ -26,8 +27,8 @@ public class ModelMutator {
 	 * @param config the configuration
 	 */
 	public static void generateModel(ModelMutatorConfiguration config) {
-		ModelGenerator modelGenerator = new ModelGenerator(config);
-		modelGenerator.mutate();
+		ModelMutator modelMutator = new ModelMutator(config);
+		modelMutator.mutate();
 	}
 	
 	/**
@@ -36,7 +37,60 @@ public class ModelMutator {
 	 * @param config the configuration
 	 */
 	public static void changeModel(ModelMutatorConfiguration config) {
-		ModelChanger modelChanger = new ModelChanger(config);
-		modelChanger.mutate();
+		ModelMutator modelMutator = new ModelMutator(config);
+		modelMutator.mutate();
 	}
+	
+	/**
+	 * The constructor.
+	 * @param config
+	 * 			the configuration used in the process
+	 */
+	public ModelMutator(ModelMutatorConfiguration config) {
+		super(config);
+	}
+
+	@Override
+	public void preMutate() {
+	}
+
+	@Override
+	public void postMutate() {
+	}
+	
+	@Override
+	public void mutate() {
+		super.mutate();
+	}
+
+	@Override
+	public void changeAttributes(int maxNumber) {
+		super.changeAttributes(maxNumber);
+	}
+
+	@Override
+	public void createEObjects(int maxNumber) {
+		super.createEObjects(maxNumber);
+	}
+
+	@Override
+	public void deleteEObjects(int maxNumber) {
+		super.deleteEObjects(maxNumber);
+	}
+
+	@Override
+	public void changeContainmentReferences(int maxNumber) {
+		super.changeContainmentReferences(maxNumber);
+	}
+
+	@Override
+	public void setContaintments() {
+		super.setContaintments();
+	}
+
+	@Override
+	public void changeCrossReferences(int maxNumber) {
+		super.changeCrossReferences(maxNumber);
+	}
+
 }
