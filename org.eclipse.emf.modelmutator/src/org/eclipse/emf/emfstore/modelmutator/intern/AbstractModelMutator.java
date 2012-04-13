@@ -454,6 +454,21 @@ public abstract class AbstractModelMutator {
 		for(EObject curChild:toDelete){
 			ModelMutatorUtil.removeFullPerCommand(curChild, configuration.getExceptionLog(), configuration.isIgnoreAndLog());
 		}
+//		deleteEObjects(parentEObject, Integer.MAX_VALUE);
+//		changeAttributes(parentEObject, Integer.MAX_VALUE);
+//		Map<EReference, List<EObject>> currentContainments = new HashMap<EReference, List<EObject>>();
+//		List<EObject> result = new ArrayList<EObject>();
+//		//Create a map of containments 
+//		for (EObject curChild : parentEObject.eContents()) {
+//			EReference containment = curChild.eContainmentFeature();
+//			List<EObject> list = currentContainments.get(containment);
+//			if (list == null) {
+//				list = new ArrayList<EObject>();
+//				currentContainments.put(containment, list);
+//			}
+//			list.add(curChild);
+//			result.add(curChild);
+//		}
 
 		List<EReference> references = new ArrayList<EReference>();
 		//generate the children of the current element so that the lower bound holds or that there is a child of each sort 
@@ -705,6 +720,48 @@ public abstract class AbstractModelMutator {
 						toDelte.addAll((EList<EObject>)eObject.eGet(reference));
 					}
 					ModelMutatorUtil.removePerCommand(eObject, reference, toDelte, configuration.getExceptionLog(), configuration.isIgnoreAndLog());	
+				}
+				else
+					eObject.eUnset(reference);
+			}
+			else{
+				//nothing was deleted so no references need to be set
+				return;
+			}
+		}
+		// check if the upper bound is reached
+		if (!ModelMutatorUtil.isValid(reference, eObject, configuration.getExceptionLog(), configuration.isIgnoreAndLog()) ||
+				(!reference.isMany() && eObject.eIsSet(reference))) {
+			return;
+		}
+		
+		ModelMutatorUtil.setReference(eObject, referenceClass, reference, configuration.getRandom(),
+			configuration.getExceptionLog(), configuration.isIgnoreAndLog(), allEObjects);
+	}
+	
+	public void changeEObjectReference(EObject eObject, EClass referenceClass, EReference reference,
+		Map<EClass, List<EObject>> allEObjects) {
+		
+		// Delete already set references (only applies when changing a model)
+		if (eObject.eIsSet(reference)) {
+			//check whether to delete or not
+			if(configuration.getRandom().nextBoolean()){
+				//do different stuff, depending on reference type
+				if(reference.isMany()){
+					List<EObject> toDelte=new ArrayList<EObject>();
+					//check whether to delete references randomly or all at once 
+					if(configuration.getRandom().nextBoolean()){
+						for(EObject refObj:(EList<EObject>)eObject.eGet(reference)){
+							//check whether to delete this reference
+							if(configuration.getRandom().nextBoolean()){
+								toDelte.add(refObj);
+							}
+						}
+					}
+					else{
+						toDelte.addAll((EList<EObject>)eObject.eGet(reference));
+					}
+//					ModelMutatorUtil.removePerCommand(eObject, reference, toDelte, configuration.getExceptionLog(), configuration.isIgnoreAndLog());	
 				}
 				else
 					eObject.eUnset(reference);
